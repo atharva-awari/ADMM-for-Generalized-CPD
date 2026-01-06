@@ -16,8 +16,8 @@ X = cp_to_tensor((None,[A,B,C]))
 
 error_measure = 'Frobenius'
 
-parameters = {'rho':1 , 'maxiter':1000, 'maxtime': 100}
-T,A,B,C,objective,residual = ao_admm_tensor(X,r,error_measure,parameters)
+parameters = {'rho':1 , 'maxiter':100, 'maxtime': 100}
+T,A,B,C,objective,residual,time_history = ao_admm_tensor(X,r,error_measure,parameters)
 #print("Final relative=",objective[-1])
 Xhat_l1 = cp_to_tensor((None, [A,B,C]))
 ## CPD comparison

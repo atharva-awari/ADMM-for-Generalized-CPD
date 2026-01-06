@@ -9,8 +9,7 @@ def update_T(X, rho, Xhat, Lambda, error_measure, parameters):
         t2star = (rho*(Xhat - Lambda) - 1 ) / rho
         T = np.maximum(np.minimum(t1star, X), t2star)
     elif error_measure == 'KL divergence':
-        e,f,g = X.shape
-        T = np.random.randn(e,f,g)
+        T = np.zeros_like(X)
         p = X>0
         q = X==0
         T[q] = (rho*Xhat[q] - rho*Lambda[q] -1) / rho

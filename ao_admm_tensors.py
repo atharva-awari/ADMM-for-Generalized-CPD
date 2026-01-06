@@ -1,51 +1,55 @@
 import numpy as np
 import matplotlib.pyplot as plt
-import tensorly as tl 
 import pytensorlab as ptl
 import time 
 
-from tensorly.cp_tensor import cp_to_tensor
+
+from pytensorlab import PolyadicTensor
 from update_T import update_T
 from compute_objective_residual import compute_objective_residual
-tl.set_backend('numpy')
+
 
 def ao_admm_tensor(X,r,error_measure,parameters):
     m,n,p = X.shape
-    # rho = parameters.get('rho', 1.0)
+    rho_A = parameters.get('rho_A', 1.0)
+    rho_B = parameters.get('rho_B', 1.0)
+    rho_C = parameters.get('rho_C', 1.0)
     maxiter = parameters.get('maxiter', 1000)
     maxtime = parameters.get('maxtime', 10)
-    inner_iter = 10
+    A  = parameters.get('Ainit', np.random.randn(m,r))
+    B  = parameters.get('Binit', np.random.randn(n,r))
+    C  = parameters.get('Cinit', np.random.randn(p,r))
+    inner_iter = parameters.get('inner_iter',10)
     T = X
-    A = np.random.randn(m,r)
-    B = np.random.randn(n,r)
-    C = np.random.randn(p,r)
+    
+    
     
     Lambda_A= np.zeros((m,n*p))
     Lambda_B= np.zeros((n,m*p))
     Lambda_C= np.zeros((p,m*n))
-
-    rho_A =0.1
-    rho_B =0.1
-    rho_C =0.1
    
     X_A = ptl.tens2mat(X,0)
     X_B = ptl.tens2mat(X,1)
     X_C = ptl.tens2mat(X,2)
     ## For KL divergence T has to be initialized with positive entries where X is positive
-    #T[X>0] = np.maximum(0.00001,T[X>0])
-    #X[X==0]= 0.00001
-    eps = 1e-8
+    if error_measure == 'KL divergence':
+       f = X > 0
+       T[f] = np.maximum(np.finfo(float).eps, T[f])
+    eps=1e-8
     k=0
     start_time = time.time()
-    Xhat = cp_to_tensor((None,[A,B,C]))
+    U = PolyadicTensor([A, B, C])
+    Xhat = np.array(U)
     objective = []
     residual  = []
+    time_history = []
     obj,res= compute_objective_residual(X,Xhat,T,error_measure)
     objective.append(obj)
     residual.append(res)
+    time_history.append(0.0)
     while k<maxiter and (time.time() - start_time < maxtime):
         
-        KR_A = ptl.kr(C, B)              # (n*p, r)
+        KR_A = ptl.kr(B, C)              # (n*p, r)
         G_A = (np.transpose(C) @ C) * (np.transpose(B) @ B) # (r, r)
         G_A = G_A + eps * np.eye(r) # Ridge regularizer
         T_A  = ptl.tens2mat(T, 0)        # (m, n*p)
@@ -58,7 +62,7 @@ def ao_admm_tensor(X,r,error_measure,parameters):
 
             Lambda_A = Lambda_A + rho_A * (T_A - A @ KR_A.T) #Update Dual variable
         
-        KR_B = ptl.kr(C, A)              # (m*p, r) depending on convention
+        KR_B = ptl.kr(A, C)              # (m*p, r) depending on convention
         G_B = (np.transpose(C) @ C) * (np.transpose(A) @ A)
         G_B = G_B + eps*np.eye(r)
         T_B  = ptl.tens2mat(T, 1)        # (n, m*p)
@@ -72,7 +76,7 @@ def ao_admm_tensor(X,r,error_measure,parameters):
             Lambda_B = Lambda_B + rho_B * (T_B - B @ KR_B.T) #Update Dual variable
 
         
-        KR_C = ptl.kr(B, A)
+        KR_C = ptl.kr(A, B)
         G_C = (np.transpose(B) @ B) * (np.transpose(A) @ A)
         G_C = G_C + eps*np.eye(r)
         T_C  = ptl.tens2mat(T, 2)
@@ -84,13 +88,17 @@ def ao_admm_tensor(X,r,error_measure,parameters):
             T_C = update_T(X_C,rho_C,Xhat,Lambda_C,error_measure,parameters) # Update T_C
             
             Lambda_C = Lambda_C + rho_C * (T_C - C @ KR_C.T) #Update Dual variable
-                    
-        
+
+           
         k+=1
-        Xhat = cp_to_tensor((None,[A,B,C]))
+        U = PolyadicTensor([A, B, C])
+        Xhat = np.array(U)
         obj,res= compute_objective_residual(X,Xhat,T,error_measure)
         objective.append(obj)
         residual.append(res)
+        # Store elapsed time
+        elapsed_time = time.time() - start_time
+        time_history.append(elapsed_time)
         
 
    ## Plotting figures
@@ -120,4 +128,4 @@ def ao_admm_tensor(X,r,error_measure,parameters):
     plt.close()
 
 
-    return T,A,B,C,objective,residual
+    return T,A,B,C,objective,residual,time_history

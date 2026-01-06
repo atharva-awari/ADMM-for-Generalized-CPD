@@ -8,7 +8,7 @@ def compute_objective_residual(X, Xhat, T, error_measure):
         objective = np.sum(np.abs(X - Xhat)) / np.sum(np.abs(X))
         residual = np.sum(np.abs(T - Xhat)) / np.sum(np.abs(T))
     elif error_measure == 'KL divergence':
-        eps = 0.0001
+        eps = 1e-8
 
         # Ensure no zeros
         X_safe = np.maximum(eps,X)
@@ -21,7 +21,7 @@ def compute_objective_residual(X, Xhat, T, error_measure):
         m,n,p = X.shape
         X_est = mu_X * np.ones((m,n,p))
 
-        # KL divergence matrix
+        # KL divergence tensor
         kl_tensor = X_safe * np.log(X_safe / Xhat_safe) - X_safe + Xhat_safe
 
         # Normalization KL term
