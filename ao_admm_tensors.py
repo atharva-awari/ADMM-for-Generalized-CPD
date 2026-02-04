@@ -23,10 +23,14 @@ def ao_admm_tensor(X,r,error_measure,parameters):
     T = X
     
     
-    
+    ## Initialize Lagrange multipliers to Zero
     Lambda_A= np.zeros((m,n*p))
     Lambda_B= np.zeros((n,m*p))
     Lambda_C= np.zeros((p,m*n))
+    ##Tensor unfoldings
+    T_A  = ptl.tens2mat(T, 0)        # (m, n*p)
+    T_B  = ptl.tens2mat(T, 1)        # (n, m*p)
+    T_C  = ptl.tens2mat(T, 2)        # (p, m*n)
    
     X_A = ptl.tens2mat(X,0)
     X_B = ptl.tens2mat(X,1)
@@ -47,47 +51,60 @@ def ao_admm_tensor(X,r,error_measure,parameters):
     objective.append(obj)
     residual.append(res)
     time_history.append(0.0)
+    time_rec=0
     while k<maxiter and (time.time() - start_time < maxtime):
         
         KR_A = ptl.kr(B, C)              # (n*p, r)
         G_A = (np.transpose(C) @ C) * (np.transpose(B) @ B) # (r, r)
         G_A = G_A + eps * np.eye(r) # Ridge regularizer
-        T_A  = ptl.tens2mat(T, 0)        # (m, n*p)
+       
         for it in range(inner_iter):
-           ## Update A and T_A keeping B and C fixed 
+            A_prev = A.copy()
+            ## Update A and T_A keeping B and C fixed 
             M = (T_A + (1.0/rho_A) * Lambda_A) @ KR_A   # (m, r)
             A = np.transpose(np.linalg.solve(G_A, np.transpose(M)))  # Update A
             Xhat = A@np.transpose(KR_A)
             T_A = update_T(X_A,rho_A,Xhat,Lambda_A,error_measure,parameters) # Update T_A
 
             Lambda_A = Lambda_A + rho_A * (T_A - A @ KR_A.T) #Update Dual variable
+            # Early stopping criterion
+            if np.linalg.norm(A - A_prev, ord='fro') / np.linalg.norm(A_prev,ord='fro') < 1e-4:
+                break
         
         KR_B = ptl.kr(A, C)              # (m*p, r) depending on convention
         G_B = (np.transpose(C) @ C) * (np.transpose(A) @ A)
         G_B = G_B + eps*np.eye(r)
-        T_B  = ptl.tens2mat(T, 1)        # (n, m*p)
+       
         ##Update B and T_B keeping A and C fixed
-        for it in range(inner_iter): 
+        for it in range(inner_iter):
+            B_prev = B.copy() 
             M = (T_B + (1.0/rho_B) * Lambda_B) @ KR_B
             B = np.transpose(np.linalg.solve(G_B, np.transpose(M)))
             Xhat = B@np.transpose(KR_B)
             T_B = update_T(X_B,rho_B,Xhat,Lambda_B,error_measure,parameters) # Update T_B
             
             Lambda_B = Lambda_B + rho_B * (T_B - B @ KR_B.T) #Update Dual variable
+            # Early stopping criterion
+            if np.linalg.norm(B - B_prev, ord='fro') / np.linalg.norm(B_prev,ord='fro') < 1e-4:
+                break
 
         
         KR_C = ptl.kr(A, B)
         G_C = (np.transpose(B) @ B) * (np.transpose(A) @ A)
         G_C = G_C + eps*np.eye(r)
-        T_C  = ptl.tens2mat(T, 2)
+       
         ##Update C and T_C keeping A and B fixed 
-        for it in range(inner_iter):  
+        for it in range(inner_iter):
+            C_prev = C.copy()  
             M = (T_C + (1.0/rho_C) * Lambda_C) @ KR_C
             C = np.transpose(np.linalg.solve(G_C, np.transpose(M)))
             Xhat = C@np.transpose(KR_C)
             T_C = update_T(X_C,rho_C,Xhat,Lambda_C,error_measure,parameters) # Update T_C
             
             Lambda_C = Lambda_C + rho_C * (T_C - C @ KR_C.T) #Update Dual variable
+            # Early stopping criterion
+            if np.linalg.norm(C - C_prev, ord='fro') / np.linalg.norm(C_prev,ord='fro') < 1e-4:
+                break
 
            
         k+=1
@@ -99,6 +116,9 @@ def ao_admm_tensor(X,r,error_measure,parameters):
         # Store elapsed time
         elapsed_time = time.time() - start_time
         time_history.append(elapsed_time)
+        if time_rec==0 and obj<= 1e-6:
+            time_rec = elapsed_time
+            
         
 
    ## Plotting figures
@@ -128,4 +148,4 @@ def ao_admm_tensor(X,r,error_measure,parameters):
     plt.close()
 
 
-    return T,A,B,C,objective,residual,time_history
+    return T,A,B,C,objective,residual,time_history,time_rec
