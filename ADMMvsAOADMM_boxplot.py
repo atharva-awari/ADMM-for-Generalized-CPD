@@ -11,7 +11,7 @@ from pytensorlab import CPDAlsOptions
 # -----------------------
 m, n, p = 120, 110, 100
 r = 10
-num_runs = 100
+num_runs = 10
 
 # Storage for final errors
 final_error_admm = []

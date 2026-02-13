@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pytensorlab as ptl
 import time 
-
+from tensorly.solvers.nnls import hals_nnls
 
 from pytensorlab import PolyadicTensor
 from update_T import update_T
@@ -19,6 +19,7 @@ def ao_admm_tensor(X,r,error_measure,parameters):
     A  = parameters.get('Ainit', np.random.randn(m,r))
     B  = parameters.get('Binit', np.random.randn(n,r))
     C  = parameters.get('Cinit', np.random.randn(p,r))
+    Xtrue = parameters.get('Xtrue', X)
     inner_iter = parameters.get('inner_iter',10)
     T = X
     
@@ -36,9 +37,6 @@ def ao_admm_tensor(X,r,error_measure,parameters):
     X_B = ptl.tens2mat(X,1)
     X_C = ptl.tens2mat(X,2)
     ## For KL divergence T has to be initialized with positive entries where X is positive
-    if error_measure == 'KL divergence':
-       f = X > 0
-       T[f] = np.maximum(np.finfo(float).eps, T[f])
     eps=1e-8
     k=0
     start_time = time.time()
@@ -47,7 +45,7 @@ def ao_admm_tensor(X,r,error_measure,parameters):
     objective = []
     residual  = []
     time_history = []
-    obj,res= compute_objective_residual(X,Xhat,T,error_measure)
+    obj,res= compute_objective_residual(Xtrue,Xhat,T,error_measure)
     objective.append(obj)
     residual.append(res)
     time_history.append(0.0)
@@ -61,8 +59,18 @@ def ao_admm_tensor(X,r,error_measure,parameters):
         for it in range(inner_iter):
             A_prev = A.copy()
             ## Update A and T_A keeping B and C fixed 
-            M = (T_A + (1.0/rho_A) * Lambda_A) @ KR_A   # (m, r)
-            A = np.transpose(np.linalg.solve(G_A, np.transpose(M)))  # Update A
+            if error_measure == 'KL divergence':
+                Tbar_A = T_A + (1.0/rho_A) * Lambda_A
+                UtM  = KR_A.T@Tbar_A.T
+                UtU  = KR_A.T@KR_A
+                V    = A.T.copy()
+                V = hals_nnls(UtM, UtU, V=V, n_iter_max=10, tol=1e-08, sparsity_coefficient=None, ridge_coefficient=None, nonzero_rows=False, exact=False, epsilon=0.0, callback=None)
+                A = V.T
+            else:
+            ## Update A using ALS
+                M = (T_A + (1.0/rho_A) * Lambda_A) @ KR_A   # (m, r)
+                A = np.transpose(np.linalg.solve(G_A, np.transpose(M)))  # Update A
+            
             Xhat = A@np.transpose(KR_A)
             T_A = update_T(X_A,rho_A,Xhat,Lambda_A,error_measure,parameters) # Update T_A
 
@@ -77,9 +85,19 @@ def ao_admm_tensor(X,r,error_measure,parameters):
        
         ##Update B and T_B keeping A and C fixed
         for it in range(inner_iter):
-            B_prev = B.copy() 
-            M = (T_B + (1.0/rho_B) * Lambda_B) @ KR_B
-            B = np.transpose(np.linalg.solve(G_B, np.transpose(M)))
+            B_prev = B.copy()
+            if error_measure == 'KL divergence':
+                Tbar_B = T_B + (1.0/rho_B) * Lambda_B
+                UtM  = KR_B.T@Tbar_B.T
+                UtU  = KR_B.T@KR_B
+                V    = B.T.copy()
+                V = hals_nnls(UtM, UtU, V=V, n_iter_max=10, tol=1e-08, sparsity_coefficient=None, ridge_coefficient=None, nonzero_rows=False, exact=False, epsilon=0.0, callback=None)
+                B = V.T
+            else:
+            ## Update B using ALS
+                M = (T_B + (1.0/rho_B) * Lambda_B) @ KR_B   # (m, r)
+                B = np.transpose(np.linalg.solve(G_B, np.transpose(M)))  # Update B
+            
             Xhat = B@np.transpose(KR_B)
             T_B = update_T(X_B,rho_B,Xhat,Lambda_B,error_measure,parameters) # Update T_B
             
@@ -95,9 +113,19 @@ def ao_admm_tensor(X,r,error_measure,parameters):
        
         ##Update C and T_C keeping A and B fixed 
         for it in range(inner_iter):
-            C_prev = C.copy()  
-            M = (T_C + (1.0/rho_C) * Lambda_C) @ KR_C
-            C = np.transpose(np.linalg.solve(G_C, np.transpose(M)))
+            C_prev = C.copy()
+            if error_measure == 'KL divergence':
+                Tbar_C = T_C + (1.0/rho_C) * Lambda_C
+                UtM  = KR_C.T@Tbar_C.T
+                UtU  = KR_C.T@KR_C
+                V    = C.T.copy()
+                V = hals_nnls(UtM, UtU, V=V, n_iter_max=10, tol=1e-08, sparsity_coefficient=None, ridge_coefficient=None, nonzero_rows=False, exact=False, epsilon=0.0, callback=None)
+                C = V.T
+            else:
+            ## Update C using ALS
+                M = (T_C + (1.0/rho_C) * Lambda_C) @ KR_C   # (m, r)
+                C = np.transpose(np.linalg.solve(G_C, np.transpose(M)))  # Update C
+            
             Xhat = C@np.transpose(KR_C)
             T_C = update_T(X_C,rho_C,Xhat,Lambda_C,error_measure,parameters) # Update T_C
             
@@ -110,7 +138,7 @@ def ao_admm_tensor(X,r,error_measure,parameters):
         k+=1
         U = PolyadicTensor([A, B, C])
         Xhat = np.array(U)
-        obj,res= compute_objective_residual(X,Xhat,T,error_measure)
+        obj,res= compute_objective_residual(Xtrue,Xhat,T,error_measure)
         objective.append(obj)
         residual.append(res)
         # Store elapsed time
