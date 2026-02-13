@@ -19,9 +19,9 @@ normX = ptl.frob(X)
 
 
 ## Initialization
-Ainit = np.random.randn(m,r)
-Binit = np.random.randn(n,r)
-Cinit = np.random.randn(p,r)
+Ainit = np.random.rand(m,r)
+Binit = np.random.rand(n,r)
+Cinit = np.random.rand(p,r)
 
 ## Define AO-ADMM for tensor parameters with frobenius norm
 error_measure = 'KL divergence'
