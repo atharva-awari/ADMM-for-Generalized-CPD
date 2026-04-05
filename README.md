@@ -1,57 +1,33 @@
-# ADMM for Nonlinear Matrix Decompositions (NMD)
+# ADMM for Generalized Tensor Decomposition
 
-Given a data matrix $X \in \mathbb{R}^{m \times n}$ and a rank $r \ll \min(m,n)$, we solve the nonlinear matrix decomposition problem:
+Given a tensor $\mathcal{X} \in \mathbb{R}^{m \times n \times p}$ and a rank $r \ll \min(m,n,p)$, we solve the Generalized Canononical Polyadic (CP/PARAFAC) decomposition problem:
 
 $$
-\min_{T,\,W,\,H} \; d(X, f(T))
+\min_{T,\,A,\,B, \C} \; d(\mathcal{X}, \mathcal{T})
 \quad \text{s.t.} \quad
-T = WH
+T = [A,B,C]
 $$
 
 where:
-- $f(\cdot)$ is an elementwise nonlinear function,
-- $d(\cdot,\cdot)$ is the loss,
-- $T \in \mathbb{R}^{m \times n}$ is a rank-$r$ matrix,
-- $W \in \mathbb{R}^{m \times r}$ and $H \in \mathbb{R}^{r \times n}$ are factors.
-
-## Nonlinear Models \(f(T)\)
-
-- **ReLU**  
-  $$
-  f(T) = \max(0,\, T)
-  $$
-
-- **CSF (elementwise square)**  
-  $$
-  f(T) = T^{.2} = T \odot T
-  $$
-
-- **Min–Max**  
-  With bounds $a \le b$:
-  $$
-  f(T) = \min\!\big(b,\, \max(a,\, T)\big)
-  $$
-
-- **Modulus**  
-  $$
-  f(T) = |T|
-  $$
+- $d(\cdot,\cdot)$ is the loss-function,
+- $T \in \mathbb{R}^{m \times n \times p}$ is a rank-$r$ tensor,
+- $A \in \mathbb{R}^{m \times r}$, $B \in \mathbb{R}^{n \times r}$ and  $C \in \mathbb{R}^{p \times r}$are factor matrices of the CP.
 
 
-## Loss Functions \(d(X, f(T))\)
+## Loss Functions \(d(\mathcal{X}, \mathcal{T}\)
 
 - **Frobenius norm**
   $$
-  \lVert X - f(T) \rVert_F
+  \lVert \mathcal{X} - \mathcal{T} \rVert_F
   \;=\;
-  \sqrt{\sum_{i=1}^m \sum_{j=1}^n \big( X_{ij} - [f(T)]_{ij} \big)^2}
+  \sqrt{\sum_{i=1}^m \sum_{j=1}^n \big( \mathcal{X}_{ij} - \mathcal{T}_{ij} \big)^2}
   $$
 
 - **\(L_1\) norm**
   $$
-  \lVert X - f(T) \rVert_1
+  \lVert \mathcal{X} - \mathcal{T} \rVert_1
   \;=\;
-  \sum_{i=1}^m \sum_{j=1}^n \left|\, X_{ij} - [f(T)]_{ij} \,\right|
+  \sum_{i=1}^m \sum_{j=1}^n \left|\, \mathcal{X}_{ij} - \mathcal{T}_{ij} \,\right|
   $$
 
 - **Kullback–Leibler (KL) divergence**  
