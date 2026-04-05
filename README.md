@@ -3,7 +3,7 @@
 Given a tensor $\mathcal{X} \in \mathbb{R}^{m \times n \times p}$ and a rank $r \ll \min(m,n,p)$, we solve the Generalized Canononical Polyadic (CP/PARAFAC) decomposition problem:
 
 $$
-\min_{\T,\,A,\,B, \C} \; d(\mathcal{X}, \mathcal{T})
+\min_{\mathcal{T},A,B,C} \; d(\mathcal{X}, \mathcal{T})
 \quad \text{s.t.} \quad
 T = [A,B,C]
 $$
@@ -14,7 +14,7 @@ where:
 - $A \in \mathbb{R}^{m \times r}$, $B \in \mathbb{R}^{n \times r}$ and  $C \in \mathbb{R}^{p \times r}$are factor matrices of the CP.
 
 
-## Loss Functions $(d(\mathcal{X}, mathcal{T} \)$
+## Loss Functions $ d(\mathcal{X}, mathcal{T}) $
 
 - **Frobenius norm**
   $$
